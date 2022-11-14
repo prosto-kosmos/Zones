@@ -2,7 +2,8 @@ import { AfterViewInit, ChangeDetectorRef, Component, ViewChild, ViewEncapsulati
 import * as go from 'gojs';
 import { DataSyncService, DiagramComponent, PaletteComponent } from 'gojs-angular';
 import produce from 'immer';
-import { defaultColor, defaultFont, finishDrop, highlightGroup, makeLayout } from './utils/diagram-utils';
+import * as utils from './utils/diagram-utils';
+import { ZoneType } from './enums/zone-type.enum';
 
 @Component({
   selector: 'app-root',
@@ -23,10 +24,12 @@ export class AppComponent implements AfterViewInit {
     skipsDiagramUpdate: false,
     selectedNodeData: null, // used by InspectorComponent
 
-    // Palette state props
     paletteNodeData: [
-      { key: 'node', text: 'Device', color: '#ACE600' },
-      { key: 'area1', isGroup: true, text: 'Area', horiz: false },
+      { key: 'area1', text: 'Area1', isGroup: true, type: ZoneType.type1 },
+      { key: 'area2', text: 'Area2', isGroup: true, type: ZoneType.type2 },
+      { key: 'area3', text: 'Area3', isGroup: true, type: ZoneType.type3 },
+      { key: 'area4', text: 'Area4', isGroup: true, type: ZoneType.type4 },
+      { key: 'node', text: 'Device' },
     ],
     paletteModelData: { prop: 'val' },
   };
@@ -45,22 +48,12 @@ export class AppComponent implements AfterViewInit {
     const dia = $(go.Diagram, {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       'undoManager.isEnabled': true,
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      'clickCreatingTool.archetypeNodeData': {
-        text: 'Device',
-      },
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      'commandHandler.archetypeGroupData': {
-        isGroup: true,
-        text: 'Group',
-        horiz: false,
-      },
       layout: new go.GridLayout({
         wrappingWidth: Infinity,
         alignment: go.GridLayout.Position,
         cellSize: new go.Size(1, 1),
       }),
-      mouseDrop: (e: any) => finishDrop(e, null),
+      mouseDrop: (e: any) => utils.finishDrop(e, null),
       model: $(go.GraphLinksModel, {
         nodeKeyProperty: 'id',
         linkToPortIdProperty: 'toPort',
@@ -72,82 +65,67 @@ export class AppComponent implements AfterViewInit {
     dia.groupTemplate = new go.Group('Auto', {
       background: 'blue',
       ungroupable: true,
-      mouseDragEnter: (e, grp, prev) => highlightGroup(e, grp, true),
-      mouseDragLeave: (e, grp, next) => highlightGroup(e, grp, false),
+      mouseDragEnter: (e, grp, prev) => utils.highlightGroup(e, grp, true),
+      mouseDragLeave: (e, grp, next) => utils.highlightGroup(e, grp, false),
+      mouseDrop: utils.finishDrop,
       computesBoundsAfterDrag: true,
-      mouseDrop: finishDrop,
       handlesDragDropForMembers: true,
-      layout: makeLayout(false),
-    })
-      .bind('layout', 'horiz', makeLayout)
-      .bind(
-        new go.Binding('background', 'isHighlighted', (h) =>
-          h ? 'rgba(255,0,0,0.2)' : 'transparent'
-        ).ofObject()
-      )
-      .add(
-        new go.Shape('Rectangle', {
-          stroke: defaultColor(false),
-          fill: defaultColor(false),
-          strokeWidth: 2,
-        })
-          .bind('stroke', 'horiz', defaultColor)
-          .bind('fill', 'horiz', defaultColor)
-      )
-      .add(
-        new go.Panel('Vertical')
-          .add(
-            new go.Panel(
-              'Horizontal',
-              {
-                stretch: go.GraphObject.Horizontal,
-                background: defaultColor(false),
-              }
-            )
-              .bind('background', 'horiz', defaultColor)
-              .add(
-                go.GraphObject.make('SubGraphExpanderButton', {
-                  alignment: go.Spot.Right,
-                  margin: 5,
-                })
-              )
-              .add(
-                new go.TextBlock({
-                  alignment: go.Spot.Left,
-                  editable: true,
-                  margin: 5,
-                  font: defaultFont(false),
-                  opacity: 0.95,
-                  stroke: '#404040',
-                })
-                  .bind('font', 'horiz', defaultFont)
-                  .bind('text', 'text', null, null)
-              )
-          ) // end Horizontal Panel
-          .add(new go.Placeholder({ padding: 5, alignment: go.Spot.TopLeft }))
-      ); // end Vertical Panel
+      layout: new go.GridLayout({
+        wrappingColumn: 3,
+        alignment: go.GridLayout.Position,
+        cellSize: new go.Size(1, 1),
+        spacing: new go.Size(1, 1),
+      }),
+    }).bind(new go.Binding('background', 'isHighlighted', (h) => h ? 'rgba(255,0,0,0.2)' : 'transparent').ofObject());
 
-    dia.nodeTemplate = new go.Node('Vertical', {
-      mouseDrop: (e, node: any) => finishDrop(e, node.containingGroup),
-    })
+    dia.groupTemplate.add(
+      new go.Shape('Rectangle', {
+        strokeWidth: 3,
+        stroke: utils.zoneStroke(null),
+        fill: utils.zoneFill(null),
+      })
+        .bind('fill', 'type', utils.zoneFill)
+        .bind('stroke', 'type', utils.zoneStroke),
+    );
 
-      .add(
-        new go.TextBlock({
-          margin: 7,
+    dia.groupTemplate.add(new go.Panel('Vertical')
+      .add(new go.Panel('Horizontal',{
+        stretch: go.GraphObject.Horizontal,
+        background: utils.zoneFill(null),
+      })
+        .bind('background', 'type', utils.zoneFill)
+        .add(go.GraphObject.make('SubGraphExpanderButton', {
+          alignment: go.Spot.Right,
+          margin: 5,
+        }))
+        .add(new go.TextBlock({
+          alignment: go.Spot.Left,
           editable: true,
-          font: 'bold 13px sans-serif',
-        }).bind('text', 'text', null, null)
+          margin: 5,
+          font: 'bold 16px sans-serif',
+          opacity: 0.95,
+          stroke: '#404040',
+        }).bind('text', 'text', null, null))
       )
-      .add(
-        new go.Picture(
-          'https://www.nwoods.com/go/beatpaths/NE_logo-75x50.png',
-          {
-            desiredSize: new go.Size(48, 48),
-            imageStretch: go.GraphObject.Uniform,
-            source: 'assets/device.png',
-          }
-        )
-      );
+      .add(new go.Placeholder({ padding: 10, alignment: go.Spot.TopLeft }))
+    );
+
+    dia.nodeTemplate = $(go.Node, 'Vertical');
+
+    dia.nodeTemplate.add(
+      new go.TextBlock({
+        alignment: go.Spot.Center,
+        editable: true,
+        margin: 8,
+        font: 'bold 13px sans-serif',
+      }).bind('text', 'text', null, null),
+      $(go.Picture, {
+        desiredSize: new go.Size(48, 48),
+        imageStretch: go.GraphObject.Uniform,
+        source: 'assets/device.png',
+        background: null,
+      }),
+    );
 
     return dia;
   }
@@ -192,75 +170,65 @@ export class AppComponent implements AfterViewInit {
 
   public initPalette(): go.Palette {
     const $ = go.GraphObject.make;
-    const palette = $(go.Palette);
+    const palette = $(go.Palette, {
+      layout: new go.GridLayout({
+        wrappingColumn: 1,
+        alignment: go.GridLayout.Position,
+        cellSize: new go.Size(1, 1),
+      }),
+    });
 
-    palette.groupTemplate = new go.Group('Auto', {
-      background: 'blue',
-      ungroupable: true,
-      mouseDragEnter: (e, grp, prev) => highlightGroup(e, grp, true),
-      mouseDragLeave: (e, grp, next) => highlightGroup(e, grp, false),
-      computesBoundsAfterDrag: true,
-      mouseDrop: finishDrop,
-      handlesDragDropForMembers: true,
-      layout: makeLayout(false),
-    })
-      .bind('layout', 'horiz', makeLayout)
-      .bind(
-        new go.Binding('background', 'isHighlighted', (h) =>
-          h ? 'rgba(255,0,0,0.2)' : 'transparent'
-        ).ofObject()
-      )
-      .add(
-        new go.Shape('Rectangle', {
-          stroke: defaultColor(false),
-          fill: defaultColor(false),
-          strokeWidth: 2,
-        })
-          .bind('stroke', 'horiz', defaultColor)
-          .bind('fill', 'horiz', defaultColor)
-      )
-      .add(
-        new go.Panel('Vertical')
-          .add(
-            new go.Panel(
-              'Horizontal',
-              {
-                stretch: go.GraphObject.Horizontal,
-                background: defaultColor(false),
-              }
-            )
-              .bind('background', 'horiz', defaultColor)
-              .add(
-                go.GraphObject.make('SubGraphExpanderButton', {
-                  alignment: go.Spot.Right,
-                  margin: 5,
-                })
-              )
-              .add(
-                new go.TextBlock({
-                  alignment: go.Spot.Left,
-                  editable: true,
-                  margin: 5,
-                  font: defaultFont(false),
-                  opacity: 0.95,
-                  stroke: '#404040',
-                })
-                  .bind('font', 'horiz', defaultFont)
-                  .bind('text', 'text', null, null)
-              )
-          ) // end Horizontal Panel
-          .add(new go.Placeholder({ padding: 5, alignment: go.Spot.TopLeft }))
-      ); // end Vertical Panel
+    palette.groupTemplate = $(go.Group, 'Auto');
 
-    palette.nodeTemplate = new go.Node('Auto', {
-      mouseDrop: (e, node: any) => finishDrop(e, node.containingGroup),
-    }).add(
-      new go.Picture('https://www.nwoods.com/go/beatpaths/NE_logo-75x50.png', {
+    palette.groupTemplate.add(
+      new go.Shape('Rectangle', {
+        desiredSize: new go.Size(150, 100),
+        strokeWidth: 3,
+        stroke: utils.zoneStroke(null),
+        fill: utils.zoneFill(null),
+      })
+        .bind('fill', 'type', utils.zoneFill)
+        .bind('stroke', 'type', utils.zoneStroke),
+    );
+
+    palette.groupTemplate.add(
+      new go.Panel('Horizontal', {
+        stretch: go.GraphObject.Horizontal,
+        desiredSize: new go.Size(150, 35),
+        background: utils.zoneFill(null),
+        alignment: go.Spot.Top,
+      })
+        .bind('background', 'type', utils.zoneFill)
+        .add(go.GraphObject.make('SubGraphExpanderButton', {
+          alignment: go.Spot.Right,
+          margin: 5,
+        }))
+        .add(new go.TextBlock({
+          alignment: go.Spot.Left,
+          editable: false,
+          margin: 5,
+          font: 'bold 16px sans-serif',
+          opacity: 0.95,
+          stroke: '#404040',
+        }).bind('text', 'text', null, null))
+    );
+
+    palette.nodeTemplate = $(go.Node, 'Vertical');
+
+    palette.nodeTemplate.add(
+      new go.TextBlock({
+        alignment: go.Spot.Center,
+        editable: false,
+        font: 'bold 13px sans-serif',
+      }).bind('text', 'text', null, null),
+      $(go.Picture, {
         desiredSize: new go.Size(48, 48),
         imageStretch: go.GraphObject.Uniform,
         source: 'assets/device.png',
-      })
+        background: null,
+      }),
     );
+
     palette.model = $(go.GraphLinksModel);
     return palette;
   }
