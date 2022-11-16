@@ -29,6 +29,11 @@
       [nodeDataArray]='state.paletteNodeData'
       [modelData]='state.paletteModelData'
     ></gojs-palette>
+
+    <div class="buttons">
+      <button (click)="save()" [disabled]="!myDiagramComponent.diagram?.isModified">Save</button>
+      <button (click)="load()">Load</button>
+    </div>
   </div>
 </div>
 

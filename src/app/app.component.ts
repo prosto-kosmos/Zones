@@ -276,4 +276,13 @@ export class AppComponent implements AfterViewInit {
       }
     });
   }
+
+  public save(): void {
+    localStorage.setItem('nodeDataArray', JSON.stringify(this.myDiagramComponent.diagram.model.nodeDataArray));
+    this.myDiagramComponent.diagram.isModified = false;
+  }
+
+  public load(): void {
+    this.myDiagramComponent.diagram.model.nodeDataArray = JSON.parse(localStorage.getItem('nodeDataArray'));
+  }
 }
