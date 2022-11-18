@@ -12,9 +12,7 @@
       [(skipsDiagramUpdate)]='state.skipsDiagramUpdate'
       (modelChange)='diagramModelChange($event)'
     ></gojs-diagram>
-  </div>
 
-  <div class="details-container">
     <gojs-overview
       #myOverview
       [initOverview]='initOverview'
@@ -22,44 +20,14 @@
       [observedDiagram]='observedDiagram'
     ></gojs-overview>
 
-    <gojs-palette
-      #myPalette
-      [initPalette]='initPalette'
-      [divClassName]='paletteDivClassName'
-      [nodeDataArray]='state.paletteNodeData'
-      [modelData]='state.paletteModelData'
-    ></gojs-palette>
-
-    <div class="buttons">
-      <button (click)="save()" [disabled]="!myDiagramComponent.diagram?.isModified">Save</button>
-      <button (click)="load()">Load</button>
+    <div class="details-container">
+      <div class="buttons">
+        <button (click)="save()" [disabled]="saveDisabled">Save</button>
+        <button (click)="load()">Load</button>
+        <button (click)="deleteZone()" [disabled]="deleteZoneDisabled">Delete</button>
+        <button (click)="addZone()">Add Zone</button>
+        <button (click)="addDevice()">Add Device</button>
+      </div>
     </div>
   </div>
 </div>
-
-
-<!-- <div class="left">
-  <app-inspector
-    [nodeData]='state.selectedNodeData'
-    (onInspectorChange)='handleInspectorChange($event)'
-  ></app-inspector>
-</div>
-
-
-<div class="clear left box">
-  <h3>Links in app data</h3>
-  <ul>
-    <li *ngFor="let ld of state.diagramLinkData">
-      Link Key: {{ld.key}}, To: {{ld.to}}, From: {{ ld.from }}
-    </li>
-  </ul>
-</div>
-
-<div class="left box">
-  <h3>Nodes in app data</h3>
-  <ul>
-    <li *ngFor="let nd of state.diagramNodeData">
-      Node ID: {{nd.id}}, Text: {{nd.text}}, Color: {{nd.color}}, Loc: {{nd.loc}}
-    </li>
-  </ul>
-</div> -->

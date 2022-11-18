@@ -24,13 +24,7 @@ export class AppComponent implements AfterViewInit {
     skipsDiagramUpdate: false,
     selectedNodeData: null, // used by InspectorComponent
 
-    paletteNodeData: [
-      { key: 'area1', text: 'Area1', isGroup: true, type: ZoneType.type1 },
-      { key: 'area2', text: 'Area2', isGroup: true, type: ZoneType.type2 },
-      { key: 'area3', text: 'Area3', isGroup: true, type: ZoneType.type3 },
-      { key: 'area4', text: 'Area4', isGroup: true, type: ZoneType.type4 },
-      { key: 'node', text: 'Device' },
-    ],
+    paletteNodeData: [],
     paletteModelData: { prop: 'val' },
   };
 
@@ -40,14 +34,27 @@ export class AppComponent implements AfterViewInit {
 
   public observedDiagram = null;
   public selectedNodeData: go.ObjectData = null;
-
   constructor(private cdr: ChangeDetectorRef) {}
+
+  get saveDisabled(): boolean {
+    return !(this.myDiagramComponent.diagram && this.myDiagramComponent.diagram?.isModified);
+  }
+
+  get deleteZoneDisabled(): boolean {
+    return!(
+      this.myDiagramComponent.diagram
+        && this.myDiagramComponent.diagram.commandHandler.canDeleteSelection()
+        && this.myDiagramComponent.diagram.selection.all(n => n instanceof go.Group)
+    );
+  }
 
   public initDiagram(): go.Diagram {
     const $ = go.GraphObject.make;
     const dia = $(go.Diagram, {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       'undoManager.isEnabled': true,
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      'commandHandler.doKeyDown': () => {},
       layout: new go.GridLayout({
         wrappingWidth: Infinity,
         alignment: go.GridLayout.Position,
@@ -284,5 +291,25 @@ export class AppComponent implements AfterViewInit {
 
   public load(): void {
     this.myDiagramComponent.diagram.model.nodeDataArray = JSON.parse(localStorage.getItem('nodeDataArray'));
+  }
+
+  public addZone(): void {
+    this.myDiagramComponent.diagram.model.addNodeData({
+      key: 'area',
+      text: 'Area',
+      isGroup: true,
+      type: ZoneType.type1,
+    });
+  }
+
+  public addDevice(): void {
+    this.myDiagramComponent.diagram.model.addNodeData({
+      key: 'node',
+      text: 'Device',
+    });
+  }
+
+  public deleteZone(): void {
+    this.myDiagramComponent.diagram.commandHandler.deleteSelection();
   }
 }

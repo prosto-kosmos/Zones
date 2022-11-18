@@ -36,7 +36,7 @@ export const highlightGroup = (e: go.InputEvent, grp: any, show: boolean) => {
     return;
   }
   e.handled = true;
-  if (show) {
+  if (show && !e.diagram.selection.all(n => n instanceof go.Group)) {
     const tool = grp.diagram.toolManager.draggingTool;
     const map = tool.draggedParts || tool.copiedParts;
     if (grp.canAddMembers(map.toKeySet())) {
@@ -50,7 +50,6 @@ export const highlightGroup = (e: go.InputEvent, grp: any, show: boolean) => {
 export const finishDrop = (e: go.InputEvent, grp: any) => {
   if (grp !== null && !e.diagram.selection.all(n => n instanceof go.Group)) {
     grp.addMembers(grp.diagram.selection, true);
-  } else {
-    e.diagram.commandHandler.addTopLevelParts(e.diagram.selection, true);
   }
+  e.diagram.layoutDiagram(true);
 };

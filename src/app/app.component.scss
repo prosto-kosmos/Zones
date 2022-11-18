@@ -4,16 +4,8 @@ body {
 
 .myDiagramDiv {
   background: whitesmoke;
-  width: calc(100vw - 250px);
   height: 95vh;
   border: 1px solid black;
-}
-
-.myPaletteDiv {
-  background: lightcyan;
-  border: 1px solid navy;
-  width: 200px;
-  height: calc(95vh - 193px);
 }
 
 .myOverviewDiv {
@@ -23,33 +15,26 @@ body {
   border: 1px solid black;
 }
 
-.view {
-  display: flex;
-  gap: 20px;
+gojs-overview {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 99999;
+}
 
-  .details-container {
+.details-container {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 99999;
+
+  .buttons {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    justify-content: space-evenly;
+    gap: 8px;
 
-    .buttons {
-      display: flex;
-      justify-content: space-evenly;
-      gap: 8px;
-
-      button {
-        width: 100%;
-      }
+    button {
+      width: 100%;
     }
   }
-}
-
-.box {
-  border: solid 1px black;
-  background: whitesmoke;
-  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-}
-
-.clear {
-  clear: both;
 }
