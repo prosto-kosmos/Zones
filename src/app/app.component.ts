@@ -4,6 +4,7 @@ import { DataSyncService, DiagramComponent, PaletteComponent } from 'gojs-angula
 import produce from 'immer';
 import * as utils from './utils/diagram-utils';
 import { ZoneType } from './enums/zone-type.enum';
+import { NodeType } from './enums/node-type.enum';
 
 @Component({
   selector: 'app-root',
@@ -34,7 +35,16 @@ export class AppComponent implements AfterViewInit {
 
   public observedDiagram = null;
   public selectedNodeData: go.ObjectData = null;
-  constructor(private cdr: ChangeDetectorRef) {}
+  constructor(private cdr: ChangeDetectorRef) {
+
+    // TODO: load from backend
+    this.state.diagramNodeData = [{
+      key: NodeType.rootArea,
+      text: 'Root Area',
+      isGroup: true,
+      type: ZoneType.type1,
+    }];
+  }
 
   get saveDisabled(): boolean {
     return !(this.myDiagramComponent.diagram && this.myDiagramComponent.diagram?.isModified);
@@ -45,7 +55,18 @@ export class AppComponent implements AfterViewInit {
       this.myDiagramComponent.diagram
         && this.myDiagramComponent.diagram.commandHandler.canDeleteSelection()
         && this.myDiagramComponent.diagram.selection.all(n => n instanceof go.Group)
+        && this.myDiagramComponent.diagram.selection.all(n => n.data.key !== NodeType.rootArea)
     );
+  }
+
+  get keyRootArea(): go.Key {
+    const rootArea = this.myDiagramComponent.diagram.model.nodeDataArray.find((node) => node.key === NodeType.rootArea);
+    const keyRootArea = rootArea ? this.myDiagramComponent.diagram.model.getKeyForNodeData(rootArea) : undefined;
+
+    if (!keyRootArea) {
+      console.error(`${NodeType.rootArea} not found`);
+    }
+    return keyRootArea;
   }
 
   public initDiagram(): go.Diagram {
@@ -60,7 +81,7 @@ export class AppComponent implements AfterViewInit {
         alignment: go.GridLayout.Position,
         cellSize: new go.Size(1, 1),
       }),
-      mouseDrop: (e: any) => utils.finishDrop(e, null),
+      mouseDrop: (e: go.InputEvent) => utils.finishDrop(e, null),
       model: $(go.GraphLinksModel, {
         nodeKeyProperty: 'id',
         linkToPortIdProperty: 'toPort',
@@ -290,12 +311,14 @@ export class AppComponent implements AfterViewInit {
   }
 
   public load(): void {
-    this.myDiagramComponent.diagram.model.nodeDataArray = JSON.parse(localStorage.getItem('nodeDataArray'));
+    if (localStorage.getItem('nodeDataArray')) {
+      this.myDiagramComponent.diagram.model.nodeDataArray = JSON.parse(localStorage.getItem('nodeDataArray'));
+    }
   }
 
   public addZone(): void {
     this.myDiagramComponent.diagram.model.addNodeData({
-      key: 'area',
+      key: NodeType.area,
       text: 'Area',
       isGroup: true,
       type: ZoneType.type1,
@@ -303,13 +326,24 @@ export class AppComponent implements AfterViewInit {
   }
 
   public addDevice(): void {
-    this.myDiagramComponent.diagram.model.addNodeData({
-      key: 'node',
-      text: 'Device',
-    });
+    if (this.keyRootArea) {
+      this.myDiagramComponent.diagram.model.addNodeData({
+        key: NodeType.device,
+        text: 'Device',
+        group: this.keyRootArea,
+      });
+    }
   }
 
   public deleteZone(): void {
-    this.myDiagramComponent.diagram.commandHandler.deleteSelection();
+    if (this.keyRootArea) {
+      const deleteIds = [];
+      this.myDiagramComponent.diagram.selection.each(n => deleteIds.push(n.data.id));
+      this.myDiagramComponent.diagram.model.nodeDataArray
+        .filter((node) => deleteIds.includes(node.group))
+        .forEach((node) => node.group = this.keyRootArea);
+      this.myDiagramComponent.diagram.updateAllRelationshipsFromData();
+      this.myDiagramComponent.diagram.commandHandler.deleteSelection();
+    }
   }
 }

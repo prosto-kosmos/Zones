@@ -31,7 +31,8 @@ export const zoneStroke = (type: ZoneType) => {
   }
 };
 
-export const highlightGroup = (e: go.InputEvent, grp: any, show: boolean) => {
+export const highlightGroup = (e: go.InputEvent, graphObject: go.GraphObject, show: boolean) => {
+  const grp = graphObject as go.Group;
   if (!grp) {
     return;
   }
@@ -47,7 +48,8 @@ export const highlightGroup = (e: go.InputEvent, grp: any, show: boolean) => {
   grp.isHighlighted = false;
 };
 
-export const finishDrop = (e: go.InputEvent, grp: any) => {
+export const finishDrop = (e: go.InputEvent, graphObject: go.GraphObject) => {
+  const grp = graphObject as go.Group;
   if (grp !== null && !e.diagram.selection.all(n => n instanceof go.Group)) {
     grp.addMembers(grp.diagram.selection, true);
   }
