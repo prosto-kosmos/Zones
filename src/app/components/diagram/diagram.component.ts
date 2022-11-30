@@ -35,14 +35,15 @@ export class AppDiagramComponent implements AfterViewInit {
 
   public observedDiagram = null;
   public selectedNodeData: go.ObjectData = null;
+  public zoneType = ZoneType;
   constructor(private cdr: ChangeDetectorRef) {
 
     // TODO: load from backend
     this.state.diagramNodeData = [{
-      key: NodeType.rootArea,
-      text: 'Root Area',
+      key: NodeType.rootZone,
+      text: 'Root Zone',
       isGroup: true,
-      type: ZoneType.type1,
+      type: ZoneType.type0,
     }];
   }
 
@@ -55,18 +56,26 @@ export class AppDiagramComponent implements AfterViewInit {
       this.myDiagramComponent.diagram
         && this.myDiagramComponent.diagram.commandHandler.canDeleteSelection()
         && this.myDiagramComponent.diagram.selection.all(n => n instanceof go.Group)
-        && this.myDiagramComponent.diagram.selection.all(n => n.data.key !== NodeType.rootArea)
+        && this.myDiagramComponent.diagram.selection.all(n => n.data.key !== NodeType.rootZone)
     );
   }
 
-  get keyRootArea(): go.Key {
-    const rootArea = this.myDiagramComponent.diagram.model.nodeDataArray.find((node) => node.key === NodeType.rootArea);
-    const keyRootArea = rootArea ? this.myDiagramComponent.diagram.model.getKeyForNodeData(rootArea) : undefined;
+  get inZoomDisabled(): boolean {
+    return!(this.myDiagramComponent.diagram && this.myDiagramComponent.diagram.commandHandler.canIncreaseZoom());
+  }
 
-    if (!keyRootArea) {
-      console.error(`${NodeType.rootArea} not found`);
+  get outZoomDisabled(): boolean {
+    return!(this.myDiagramComponent.diagram && this.myDiagramComponent.diagram.commandHandler.canDecreaseZoom());
+  }
+
+  get keyRootZone(): go.Key {
+    const rootZone = this.myDiagramComponent.diagram.model.nodeDataArray.find((node) => node.key === NodeType.rootZone);
+    const keyRootZone = rootZone ? this.myDiagramComponent.diagram.model.getKeyForNodeData(rootZone) : undefined;
+
+    if (!keyRootZone) {
+      console.error(`${NodeType.rootZone} not found`);
     }
-    return keyRootArea;
+    return keyRootZone;
   }
 
   public initDiagram(): go.Diagram {
@@ -91,23 +100,32 @@ export class AppDiagramComponent implements AfterViewInit {
     });
 
     dia.groupTemplate = new go.Group('Auto', {
-      background: 'blue',
       ungroupable: true,
       mouseDragEnter: (e, grp, prev) => utils.highlightGroup(e, grp, true),
       mouseDragLeave: (e, grp, next) => utils.highlightGroup(e, grp, false),
       mouseDrop: utils.finishDrop,
+      memberAdded: utils.updateGroupCount,
+      memberRemoved: utils.updateGroupCount,
+      subGraphExpandedChanged: utils.groupExpandedChanged,
+      doubleClick: (e, grp) => utils.groupClick(grp as go.Group),
       computesBoundsAfterDrag: true,
       handlesDragDropForMembers: true,
       layout: new go.GridLayout({
         wrappingColumn: 3,
         alignment: go.GridLayout.Position,
         cellSize: new go.Size(1, 1),
-        spacing: new go.Size(1, 1),
+        spacing: new go.Size(5, 5),
       }),
+      selectionAdornmentTemplate:
+        $(go.Adornment, 'Auto',
+          $(go.Shape, { fill: null, stroke: utils.selectStroke(NodeType.zone), strokeWidth: 4 }),
+          $(go.Placeholder),
+        ),
     }).bind(new go.Binding('background', 'isHighlighted', (h) => h ? 'rgba(255,0,0,0.2)' : 'transparent').ofObject());
 
     dia.groupTemplate.add(
       new go.Shape('Rectangle', {
+        name: 'zone_panel',
         strokeWidth: 3,
         stroke: utils.zoneStroke(null),
         fill: utils.zoneFill(null),
@@ -120,14 +138,18 @@ export class AppDiagramComponent implements AfterViewInit {
       .add(new go.Panel('Horizontal',{
         stretch: go.GraphObject.Horizontal,
         background: utils.zoneFill(null),
+        minSize: new go.Size(70, 0),
       })
         .bind('background', 'type', utils.zoneFill)
-        .add(go.GraphObject.make('SubGraphExpanderButton', {
-          alignment: go.Spot.Right,
+        .add($('SubGraphExpanderButton', {
+          name: 'expander_button',
+          alignment: go.Spot.Left,
           margin: 5,
         }))
         .add(new go.TextBlock({
-          alignment: go.Spot.Left,
+          name: 'zone_name',
+          maxLines: 1,
+          alignment: go.Spot.Right,
           editable: true,
           margin: 5,
           font: 'bold 16px sans-serif',
@@ -135,13 +157,44 @@ export class AppDiagramComponent implements AfterViewInit {
           stroke: '#404040',
         }).bind('text', 'text', null, null))
       )
+      .add(new go.Panel('Auto', { name: 'hidden_panel', visible: false }).add(
+        $(go.Picture, {
+          desiredSize: new go.Size(68, 68),
+          imageStretch: go.GraphObject.Uniform,
+          source: 'assets/cloud-black.png',
+          background: null,
+        }),
+        $(go.TextBlock, {
+          name: 'nodes_counter',
+          text: '0',
+          textAlign: 'center',
+          verticalAlignment: go.Spot.Center,
+          font: 'bold 15px sans-serif',
+        }),
+      ))
       .add(new go.Placeholder({ padding: 10, alignment: go.Spot.TopLeft }))
     );
 
-    dia.nodeTemplate = $(go.Node, 'Vertical');
+    dia.nodeTemplate = $(go.Node, 'Auto', {
+      selectionAdornmentTemplate:
+        $(go.Adornment, 'Auto',
+          $(go.Shape, { fill: null, stroke: utils.selectStroke(NodeType.device), strokeWidth: 3 }),
+          $(go.Placeholder),
+        ),
+    });
 
-    dia.nodeTemplate.add(
+    dia.nodeTemplate.add(new go.Shape('Rectangle', {
+      stroke: utils.zoneStroke(null),
+      fill: utils.zoneFill(null),
+      strokeWidth: 2,
+    })
+      .bind('fill', 'type', utils.zoneFill)
+      .bind('stroke', 'type', utils.zoneStroke),
+    );
+
+    dia.nodeTemplate.add(new go.Panel('Vertical').add(
       new go.TextBlock({
+        maxLines: 1,
         alignment: go.Spot.Center,
         editable: true,
         margin: 8,
@@ -153,7 +206,7 @@ export class AppDiagramComponent implements AfterViewInit {
         source: 'assets/device.png',
         background: null,
       }),
-    );
+    ));
 
     return dia;
   }
@@ -195,71 +248,6 @@ export class AppDiagramComponent implements AfterViewInit {
       }
     });
   };
-
-  public initPalette(): go.Palette {
-    const $ = go.GraphObject.make;
-    const palette = $(go.Palette, {
-      layout: new go.GridLayout({
-        wrappingColumn: 1,
-        alignment: go.GridLayout.Position,
-        cellSize: new go.Size(1, 1),
-      }),
-    });
-
-    palette.groupTemplate = $(go.Group, 'Auto');
-
-    palette.groupTemplate.add(
-      new go.Shape('Rectangle', {
-        desiredSize: new go.Size(150, 100),
-        strokeWidth: 3,
-        stroke: utils.zoneStroke(null),
-        fill: utils.zoneFill(null),
-      })
-        .bind('fill', 'type', utils.zoneFill)
-        .bind('stroke', 'type', utils.zoneStroke),
-    );
-
-    palette.groupTemplate.add(
-      new go.Panel('Horizontal', {
-        stretch: go.GraphObject.Horizontal,
-        desiredSize: new go.Size(150, 35),
-        background: utils.zoneFill(null),
-        alignment: go.Spot.Top,
-      })
-        .bind('background', 'type', utils.zoneFill)
-        .add(go.GraphObject.make('SubGraphExpanderButton', {
-          alignment: go.Spot.Right,
-          margin: 5,
-        }))
-        .add(new go.TextBlock({
-          alignment: go.Spot.Left,
-          editable: false,
-          margin: 5,
-          font: 'bold 16px sans-serif',
-          opacity: 0.95,
-          stroke: '#404040',
-        }).bind('text', 'text', null, null))
-    );
-
-    palette.nodeTemplate = $(go.Node, 'Vertical');
-
-    palette.nodeTemplate.add(
-      new go.TextBlock({
-        alignment: go.Spot.Center,
-        editable: false,
-        font: 'bold 13px sans-serif',
-      }).bind('text', 'text', null, null),
-      $(go.Picture, {
-        desiredSize: new go.Size(48, 48),
-        imageStretch: go.GraphObject.Uniform,
-        source: 'assets/device.png',
-        background: null,
-      }),
-    );
-
-    palette.model = $(go.GraphLinksModel);
-    return palette;
-  }
 
   public initOverview(): go.Overview {
     const $ = go.GraphObject.make;
@@ -318,32 +306,45 @@ export class AppDiagramComponent implements AfterViewInit {
 
   public addZone(): void {
     this.myDiagramComponent.diagram.model.addNodeData({
-      key: NodeType.area,
-      text: 'Area',
+      key: NodeType.zone,
+      text: 'Zone',
       isGroup: true,
-      type: ZoneType.type1,
+      type: ZoneType.type0,
     });
   }
 
-  public addDevice(): void {
-    if (this.keyRootArea) {
+  public addDevice(type?: ZoneType): void {
+    if (this.keyRootZone) {
       this.myDiagramComponent.diagram.model.addNodeData({
         key: NodeType.device,
         text: 'Device',
-        group: this.keyRootArea,
+        group: this.keyRootZone,
+        type: type || ZoneType.type0,
       });
     }
   }
 
   public deleteZone(): void {
-    if (this.keyRootArea) {
+    if (this.keyRootZone) {
       const deleteIds = [];
       this.myDiagramComponent.diagram.selection.each(n => deleteIds.push(n.data.id));
       this.myDiagramComponent.diagram.model.nodeDataArray
         .filter((node) => deleteIds.includes(node.group))
-        .forEach((node) => node.group = this.keyRootArea);
+        .forEach((node) => node.group = this.keyRootZone);
       this.myDiagramComponent.diagram.updateAllRelationshipsFromData();
       this.myDiagramComponent.diagram.commandHandler.deleteSelection();
+    }
+  }
+
+  public outZoom(): void {
+    if (this.myDiagramComponent.diagram.commandHandler.canDecreaseZoom()) {
+      this.myDiagramComponent.diagram.commandHandler.decreaseZoom();
+    }
+  }
+
+  public inZoom(): void {
+    if (this.myDiagramComponent.diagram.commandHandler.canIncreaseZoom()) {
+      this.myDiagramComponent.diagram.commandHandler.increaseZoom();
     }
   }
 }

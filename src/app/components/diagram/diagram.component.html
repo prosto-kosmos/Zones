@@ -20,13 +20,37 @@
 
     <div class="details-container">
       <div class="buttons">
-        <button (click)="save()" [disabled]="saveDisabled">Save</button>
-        <button (click)="load()">Load</button>
-        <button (click)="deleteZone()" [disabled]="deleteZoneDisabled">
-          Delete
+        <button mat-button (click)="save()" [disabled]="saveDisabled">
+          <mat-icon>save_alt</mat-icon>
         </button>
-        <button (click)="addZone()">Add Zone</button>
-        <button (click)="addDevice()">Add Device</button>
+
+        <button mat-button (click)="load()">
+          <mat-icon>restore</mat-icon>
+        </button>
+
+        <button mat-button (click)="deleteZone()" [disabled]="deleteZoneDisabled">
+          <mat-icon>delete_outline</mat-icon>
+        </button>
+
+        <button mat-button (click)="addZone()">
+          <mat-icon>cloud_queue</mat-icon>
+        </button>
+
+        <button mat-button (click)="addDevice()">
+          <mat-icon>router</mat-icon>
+        </button>
+
+        <button mat-button>
+          <mat-icon>help_outline</mat-icon>
+        </button>
+
+        <button mat-button (click)="inZoom()" [disabled]="inZoomDisabled">
+          <mat-icon>zoom_in</mat-icon>
+        </button>
+
+        <button mat-button (click)="outZoom()" [disabled]="outZoomDisabled">
+          <mat-icon>zoom_out</mat-icon>
+        </button>
       </div>
     </div>
   </div>

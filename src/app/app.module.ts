@@ -7,6 +7,8 @@ import { AppComponent } from './app.component';
 import { InspectorComponent } from './components/inspector/inspector.component';
 import { InspectorRowComponent } from './components/inspector/inspector-row.component';
 import { AppDiagramComponent } from './components/diagram/diagram.component';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material';
 
 @NgModule({
   declarations: [
@@ -19,6 +21,8 @@ import { AppDiagramComponent } from './components/diagram/diagram.component';
     BrowserModule,
     FormsModule,
     GojsAngularModule,
+    MatButtonModule,
+    MatIconModule,
   ],
   providers: [],
   bootstrap: [AppComponent]
