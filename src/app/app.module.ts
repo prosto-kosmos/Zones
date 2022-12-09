@@ -9,6 +9,8 @@ import { InspectorRowComponent } from './components/inspector/inspector-row.comp
 import { AppDiagramComponent } from './components/diagram/diagram.component';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material';
+import { ZonesService } from './services/zones.service';
+import { HttpClientModule } from '@angular/common/http';
 
 @NgModule({
   declarations: [
@@ -23,8 +25,11 @@ import { MatIconModule } from '@angular/material';
     GojsAngularModule,
     MatButtonModule,
     MatIconModule,
+    HttpClientModule,
   ],
-  providers: [],
+  providers: [
+    ZonesService,
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

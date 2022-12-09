@@ -5,6 +5,7 @@ import produce from 'immer';
 import * as utils from 'src/app/utils/diagram-utils';
 import { ZoneType } from 'src/app/enums/zone-type.enum';
 import { NodeType } from 'src/app/enums/node-type.enum';
+import { ZonesService } from 'src/app/services/zones.service';
 
 @Component({
   selector: 'app-diagram',
@@ -36,15 +37,12 @@ export class AppDiagramComponent implements AfterViewInit {
   public observedDiagram = null;
   public selectedNodeData: go.ObjectData = null;
   public zoneType = ZoneType;
-  constructor(private cdr: ChangeDetectorRef) {
 
-    // TODO: load from backend
-    this.state.diagramNodeData = [{
-      key: NodeType.rootZone,
-      text: 'Root Zone',
-      isGroup: true,
-      type: ZoneType.type0,
-    }];
+  constructor(
+    private cdr: ChangeDetectorRef,
+    private zonesService: ZonesService,
+  ) {
+    this.loadZones();
   }
 
   get saveDisabled(): boolean {
@@ -346,5 +344,31 @@ export class AppDiagramComponent implements AfterViewInit {
     if (this.myDiagramComponent.diagram.commandHandler.canIncreaseZoom()) {
       this.myDiagramComponent.diagram.commandHandler.increaseZoom();
     }
+  }
+
+  private loadZones(): void {
+    this.zonesService.getZoneList().subscribe((zones) => {
+      this.state.diagramNodeData = [];
+      zones.forEach((zone) => {
+        this.state.diagramNodeData.push({
+          id: zone.ID,
+          key: zone.ID === -1 ? NodeType.rootZone : NodeType.zone,
+          text: zone.Name,
+          isGroup: true,
+          type: ZoneType.type0,
+        });
+        if (zone.Units) {
+          zone.Units.forEach((unit) => {
+            this.state.diagramNodeData.push({
+              id: unit.Index,
+              key: NodeType.device,
+              text: unit.Info.Name,
+              group: zone.ID,
+              type: unit.Online ? ZoneType.type1 : ZoneType.type4,
+            });
+          });
+        }
+      });
+    });
   }
 }
