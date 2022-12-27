@@ -1,4 +1,4 @@
-import { ZoneListResponse } from '../interfaces/zone-response.interface';
+import { ZoneListResponse } from '../interfaces/zone-list-response.interface';
 
 /* eslint-disable @typescript-eslint/naming-convention */
 

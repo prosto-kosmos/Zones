@@ -41,13 +41,7 @@ export class AppDiagramComponent implements AfterViewInit {
   constructor(
     private cdr: ChangeDetectorRef,
     private zonesService: ZonesService,
-  ) {
-    this.loadZones();
-  }
-
-  get saveDisabled(): boolean {
-    return !(this.myDiagramComponent.diagram && this.myDiagramComponent.diagram?.isModified);
-  }
+  ) { }
 
   get deleteZoneDisabled(): boolean {
     return!(
@@ -101,7 +95,6 @@ export class AppDiagramComponent implements AfterViewInit {
       ungroupable: true,
       mouseDragEnter: (e, grp, prev) => utils.highlightGroup(e, grp, true),
       mouseDragLeave: (e, grp, next) => utils.highlightGroup(e, grp, false),
-      mouseDrop: utils.finishDrop,
       memberAdded: utils.updateGroupCount,
       memberRemoved: utils.updateGroupCount,
       subGraphExpandedChanged: utils.groupExpandedChanged,
@@ -192,6 +185,7 @@ export class AppDiagramComponent implements AfterViewInit {
 
     dia.nodeTemplate.add(new go.Panel('Vertical').add(
       new go.TextBlock({
+        name: 'unit_name',
         maxLines: 1,
         alignment: go.Spot.Center,
         editable: true,
@@ -273,64 +267,33 @@ export class AppDiagramComponent implements AfterViewInit {
         }
       });
     });
-  }
 
-  public handleInspectorChange(changedPropAndVal: { prop: any; newVal: any }) {
-    const path = changedPropAndVal.prop;
-    const value = changedPropAndVal.newVal;
+    (this.myDiagramComponent.diagram.groupTemplate.findObject('zone_name') as go.TextBlock).textEdited =
+      ((thisTextBlock, oldName, newName) => this.updateZoneName(thisTextBlock, oldName, newName, appComp));
 
-    this.state = produce(this.state, (draft) => {
-      const data = draft.selectedNodeData;
-      data[path] = value;
-      const key = data.id;
-      const idx = draft.diagramNodeData.findIndex((nd) => nd.id === key);
-      if (idx >= 0) {
-        draft.diagramNodeData[idx] = data;
-        draft.skipsDiagramUpdate = false;
-      }
-    });
-  }
+    (this.myDiagramComponent.diagram.nodeTemplate.findObject('unit_name') as go.TextBlock).textEdited =
+      ((thisTextBlock, oldName, newName) => this.updateUnitName(thisTextBlock, oldName, newName, appComp));
 
-  public save(): void {
-    localStorage.setItem('nodeDataArray', JSON.stringify(this.myDiagramComponent.diagram.model.nodeDataArray));
-    this.myDiagramComponent.diagram.isModified = false;
-  }
+    this.myDiagramComponent.diagram.groupTemplate.mouseDrop =
+      ((e, thisObj) => this.updateUnitZone(e, thisObj, appComp));
 
-  public load(): void {
-    if (localStorage.getItem('nodeDataArray')) {
-      this.myDiagramComponent.diagram.model.nodeDataArray = JSON.parse(localStorage.getItem('nodeDataArray'));
-    }
+    this.loadZones();
   }
 
   public addZone(): void {
-    this.myDiagramComponent.diagram.model.addNodeData({
-      key: NodeType.zone,
-      text: 'Zone',
-      isGroup: true,
-      type: ZoneType.type0,
-    });
-  }
-
-  public addDevice(type?: ZoneType): void {
-    if (this.keyRootZone) {
-      this.myDiagramComponent.diagram.model.addNodeData({
-        key: NodeType.device,
-        text: 'Device',
-        group: this.keyRootZone,
-        type: type || ZoneType.type0,
-      });
-    }
+    this.zonesService.createZone({}).subscribe(() => this.loadZones());
   }
 
   public deleteZone(): void {
     if (this.keyRootZone) {
-      const deleteIds = [];
-      this.myDiagramComponent.diagram.selection.each(n => deleteIds.push(n.data.id));
-      this.myDiagramComponent.diagram.model.nodeDataArray
-        .filter((node) => deleteIds.includes(node.group))
-        .forEach((node) => node.group = this.keyRootZone);
-      this.myDiagramComponent.diagram.updateAllRelationshipsFromData();
-      this.myDiagramComponent.diagram.commandHandler.deleteSelection();
+      this.myDiagramComponent.diagram.selection.each((zone) => {
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        this.zonesService.deleteZone({ ID: zone.data.id }).subscribe(() => {
+          this.loadZones();
+          this.myDiagramComponent.diagram.updateAllRelationshipsFromData();
+          this.myDiagramComponent.diagram.commandHandler.deleteSelection();
+        });
+      }) ;
     }
   }
 
@@ -346,11 +309,49 @@ export class AppDiagramComponent implements AfterViewInit {
     }
   }
 
-  private loadZones(): void {
+  public updateZoneName(thisTextBlock: go.TextBlock, oldName: string, newName: string, appComp: AppDiagramComponent): void {
+    const grpId = thisTextBlock.panel.panel.panel.data.id;
+    if (newName && newName !== oldName) {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      appComp.zonesService.updateZone({ ID: grpId, Name: newName }).subscribe(() => {
+        this.loadZones();
+      });
+    } else {
+      thisTextBlock.text = oldName;
+    }
+  }
+
+  public updateUnitZone(e: go.InputEvent, thisObj: go.GraphObject, appComp: AppDiagramComponent): void {
+    const grp = thisObj as go.Group;
+    if (grp !== null && !e.diagram.selection.all(n => n instanceof go.Group)) {
+      grp.addMembers(grp.diagram.selection, true);
+      grp.diagram.selection.each((device) => {
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        this.zonesService.updateUnit({ Serial: device.data.id, ZoneID: grp.data.id }).subscribe(() => {
+          this.loadZones();
+        });
+      });
+    }
+    e.diagram.layoutDiagram(true);
+  }
+
+  public updateUnitName(thisTextBlock: go.TextBlock, oldName: string, newName: string, appComp: AppDiagramComponent): void {
+    const unitId = thisTextBlock.panel.panel.data.id;
+    if (newName && newName !== oldName) {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      appComp.zonesService.updateUnit({ Serial: unitId, Name: newName }).subscribe(() => {
+        this.loadZones();
+      });
+    } else {
+      thisTextBlock.text = oldName;
+    }
+  }
+
+  public loadZones(): void {
     this.zonesService.getZoneList().subscribe((zones) => {
-      this.state.diagramNodeData = [];
+      this.myDiagramComponent.diagram.model.nodeDataArray = [];
       zones.forEach((zone) => {
-        this.state.diagramNodeData.push({
+        this.myDiagramComponent.diagram.model.addNodeData({
           id: zone.ID,
           key: zone.ID === -1 ? NodeType.rootZone : NodeType.zone,
           text: zone.Name,
@@ -359,8 +360,8 @@ export class AppDiagramComponent implements AfterViewInit {
         });
         if (zone.Units) {
           zone.Units.forEach((unit) => {
-            this.state.diagramNodeData.push({
-              id: unit.Index,
+            this.myDiagramComponent.diagram.model.addNodeData({
+              id: unit.Info.Device.Serial,
               key: NodeType.device,
               text: unit.Info.Name,
               group: zone.ID,

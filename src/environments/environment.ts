@@ -5,7 +5,8 @@
 export const environment = {
   production: false,
   apiURL: 'http://172.17.41.210:8020',
-  isMock: true,
+  isMock: false,
+  token: 'e4k8sl3m9q0o9ow8m1a3o',
 };
 
 /*
