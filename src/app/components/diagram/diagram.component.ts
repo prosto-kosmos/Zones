@@ -1,11 +1,11 @@
 import { AfterViewInit, ChangeDetectorRef, Component, ViewChild, ViewEncapsulation } from '@angular/core';
 import * as go from 'gojs';
-import { DataSyncService, DiagramComponent, PaletteComponent } from 'gojs-angular';
-import produce from 'immer';
+import { DiagramComponent } from 'gojs-angular';
 import * as utils from 'src/app/utils/diagram-utils';
 import { ZoneType } from 'src/app/enums/zone-type.enum';
 import { NodeType } from 'src/app/enums/node-type.enum';
 import { ZonesService } from 'src/app/services/zones.service';
+import { DiagramTemplateName } from 'src/app/enums/diagram-template-name.enum';
 
 @Component({
   selector: 'app-diagram',
@@ -14,29 +14,19 @@ import { ZonesService } from 'src/app/services/zones.service';
   encapsulation: ViewEncapsulation.ShadowDom,
 })
 export class AppDiagramComponent implements AfterViewInit {
-  @ViewChild('myDiagram', { static: true })
-  public myDiagramComponent: DiagramComponent;
-  @ViewChild('myPalette', { static: true })
-  public myPaletteComponent: PaletteComponent;
+  @ViewChild('myDiagram', { static: true }) public myDiagramComponent: DiagramComponent;
 
   public state = {
     diagramNodeData: [],
     diagramLinkData: [],
     diagramModelData: { prop: 'value' },
     skipsDiagramUpdate: false,
-    selectedNodeData: null, // used by InspectorComponent
-
-    paletteNodeData: [],
-    paletteModelData: { prop: 'val' },
   };
 
   public diagramDivClassName = 'myDiagramDiv';
-  public paletteDivClassName = 'myPaletteDiv';
-  public oDivClassName = 'myOverviewDiv';
+  public overviewDivClassName = 'myOverviewDiv';
 
   public observedDiagram = null;
-  public selectedNodeData: go.ObjectData = null;
-  public zoneType = ZoneType;
 
   constructor(
     private cdr: ChangeDetectorRef,
@@ -77,12 +67,12 @@ export class AppDiagramComponent implements AfterViewInit {
       'undoManager.isEnabled': true,
       // eslint-disable-next-line @typescript-eslint/naming-convention
       'commandHandler.doKeyDown': () => {},
-      layout: new go.GridLayout({
+      layout: $(go.GridLayout, {
         wrappingWidth: Infinity,
         alignment: go.GridLayout.Position,
         cellSize: new go.Size(1, 1),
       }),
-      mouseDrop: (e: go.InputEvent) => utils.finishDrop(e, null),
+      mouseDrop: utils.finishDrop,
       model: $(go.GraphLinksModel, {
         nodeKeyProperty: 'id',
         linkToPortIdProperty: 'toPort',
@@ -91,7 +81,7 @@ export class AppDiagramComponent implements AfterViewInit {
       }),
     });
 
-    dia.groupTemplate = new go.Group('Auto', {
+    dia.groupTemplate = $(go.Group, go.Group.Auto, {
       ungroupable: true,
       mouseDragEnter: (e, grp, prev) => utils.highlightGroup(e, grp, true),
       mouseDragLeave: (e, grp, next) => utils.highlightGroup(e, grp, false),
@@ -101,22 +91,25 @@ export class AppDiagramComponent implements AfterViewInit {
       doubleClick: (e, grp) => utils.groupClick(grp as go.Group),
       computesBoundsAfterDrag: true,
       handlesDragDropForMembers: true,
-      layout: new go.GridLayout({
+      layout: $(go.GridLayout, {
         wrappingColumn: 3,
         alignment: go.GridLayout.Position,
         cellSize: new go.Size(1, 1),
         spacing: new go.Size(5, 5),
       }),
-      selectionAdornmentTemplate:
-        $(go.Adornment, 'Auto',
-          $(go.Shape, { fill: null, stroke: utils.selectStroke(NodeType.zone), strokeWidth: 4 }),
-          $(go.Placeholder),
-        ),
+      selectionAdornmentTemplate: $(go.Adornment, go.Adornment.Auto,
+        $(go.Shape, {
+          fill: null,
+          stroke: utils.selectStroke(NodeType.zone),
+          strokeWidth: 4,
+        }),
+        $(go.Placeholder),
+      ),
     }).bind(new go.Binding('background', 'isHighlighted', (h) => h ? 'rgba(255,0,0,0.2)' : 'transparent').ofObject());
 
     dia.groupTemplate.add(
-      new go.Shape('Rectangle', {
-        name: 'zone_panel',
+      $(go.Shape, go.Geometry.Rectangle, {
+        name: DiagramTemplateName.zonePanel,
         strokeWidth: 3,
         stroke: utils.zoneStroke(null),
         fill: utils.zoneFill(null),
@@ -125,20 +118,20 @@ export class AppDiagramComponent implements AfterViewInit {
         .bind('stroke', 'type', utils.zoneStroke),
     );
 
-    dia.groupTemplate.add(new go.Panel('Vertical')
-      .add(new go.Panel('Horizontal',{
+    dia.groupTemplate.add($(go.Panel, go.Panel.Vertical)
+      .add($(go.Panel, go.Panel.Horizontal, {
         stretch: go.GraphObject.Horizontal,
         background: utils.zoneFill(null),
         minSize: new go.Size(70, 0),
       })
         .bind('background', 'type', utils.zoneFill)
         .add($('SubGraphExpanderButton', {
-          name: 'expander_button',
+          name: DiagramTemplateName.expanderButton,
           alignment: go.Spot.Left,
           margin: 5,
         }))
-        .add(new go.TextBlock({
-          name: 'zone_name',
+        .add($(go.TextBlock, {
+          name: DiagramTemplateName.zoneTitle,
           maxLines: 1,
           alignment: go.Spot.Right,
           editable: true,
@@ -148,7 +141,7 @@ export class AppDiagramComponent implements AfterViewInit {
           stroke: '#404040',
         }).bind('text', 'text', null, null))
       )
-      .add(new go.Panel('Auto', { name: 'hidden_panel', visible: false }).add(
+      .add($(go.Panel, go.Panel.Auto, { name: DiagramTemplateName.hiddenPanel, visible: false }).add(
         $(go.Picture, {
           desiredSize: new go.Size(68, 68),
           imageStretch: go.GraphObject.Uniform,
@@ -156,25 +149,25 @@ export class AppDiagramComponent implements AfterViewInit {
           background: null,
         }),
         $(go.TextBlock, {
-          name: 'nodes_counter',
+          name: DiagramTemplateName.nodesConterText,
           text: '0',
           textAlign: 'center',
           verticalAlignment: go.Spot.Center,
           font: 'bold 15px sans-serif',
         }),
       ))
-      .add(new go.Placeholder({ padding: 10, alignment: go.Spot.TopLeft }))
+      .add($(go.Placeholder, { padding: 10, alignment: go.Spot.TopLeft }))
     );
 
-    dia.nodeTemplate = $(go.Node, 'Auto', {
+    dia.nodeTemplate = $(go.Node, go.Node.Auto, {
       selectionAdornmentTemplate:
-        $(go.Adornment, 'Auto',
+        $(go.Adornment, go.Adornment.Auto,
           $(go.Shape, { fill: null, stroke: utils.selectStroke(NodeType.device), strokeWidth: 3 }),
           $(go.Placeholder),
         ),
     });
 
-    dia.nodeTemplate.add(new go.Shape('Rectangle', {
+    dia.nodeTemplate.add($(go.Shape, go.Geometry.Rectangle, {
       stroke: utils.zoneStroke(null),
       fill: utils.zoneFill(null),
       strokeWidth: 2,
@@ -183,9 +176,9 @@ export class AppDiagramComponent implements AfterViewInit {
       .bind('stroke', 'type', utils.zoneStroke),
     );
 
-    dia.nodeTemplate.add(new go.Panel('Vertical').add(
-      new go.TextBlock({
-        name: 'unit_name',
+    dia.nodeTemplate.add($(go.Panel, go.Panel.Vertical).add(
+      $(go.TextBlock, {
+        name: DiagramTemplateName.unitTitle,
         maxLines: 1,
         alignment: go.Spot.Center,
         editable: true,
@@ -203,42 +196,10 @@ export class AppDiagramComponent implements AfterViewInit {
     return dia;
   }
 
-  public diagramModelChange = function(changes: go.IncrementalData) {
-    if (!changes) {return;}
-    const appComp = this;
-    this.state = produce(this.state, (draft: {
-        skipsDiagramUpdate: boolean;
-        diagramNodeData: go.ObjectData[];
-        diagramLinkData: go.ObjectData[];
-        diagramModelData: go.ObjectData;
-        selectedNodeData: go.ObjectData;
-      }) => {
-      draft.skipsDiagramUpdate = true;
-      draft.diagramNodeData = DataSyncService.syncNodeData(
-        changes,
-        draft.diagramNodeData,
-        appComp.observedDiagram.model
-      );
-      draft.diagramLinkData = DataSyncService.syncLinkData(
-        changes,
-        draft.diagramLinkData,
-        appComp.observedDiagram.model
-      );
-      draft.diagramModelData = DataSyncService.syncModelData(
-        changes,
-        draft.diagramModelData
-      );
-
-      const modifiedNodeDatas = changes.modifiedNodeData;
-      if (modifiedNodeDatas && draft.selectedNodeData) {
-        for (const mn of modifiedNodeDatas) {
-          const nodeKeyProperty = appComp.myDiagramComponent.diagram.model.nodeKeyProperty as string;
-          if (mn[nodeKeyProperty] === draft.selectedNodeData[nodeKeyProperty]) {
-            draft.selectedNodeData = mn;
-          }
-        }
-      }
-    });
+  public diagramModelChange(changes: go.IncrementalData) {
+    if (!changes) {
+      return;
+    }
   };
 
   public initOverview(): go.Overview {
@@ -248,34 +209,23 @@ export class AppDiagramComponent implements AfterViewInit {
   }
 
   public ngAfterViewInit() {
-    if (this.observedDiagram) {return;}
+    if (this.observedDiagram) {
+      return;
+    }
     this.observedDiagram = this.myDiagramComponent.diagram;
     this.cdr.detectChanges();
-    const appComp: AppDiagramComponent = this;
 
     this.myDiagramComponent.diagram.addDiagramListener('ChangedSelection', (e) => {
-      if (e.diagram.selection.count === 0) {
-        appComp.selectedNodeData = null;
-      }
-      const node = e.diagram.selection.first();
-      appComp.state = produce(appComp.state, (draft) => {
-        if (node instanceof go.Node) {
-          const idx = draft.diagramNodeData.findIndex((nd) => nd.id === node.data.id);
-          draft.selectedNodeData = draft.diagramNodeData[idx];
-        } else {
-          draft.selectedNodeData = null;
-        }
-      });
+      // TODO: Implement 'ChangedSelection' event
     });
 
-    (this.myDiagramComponent.diagram.groupTemplate.findObject('zone_name') as go.TextBlock).textEdited =
-      ((thisTextBlock, oldName, newName) => this.updateZoneName(thisTextBlock, oldName, newName, appComp));
+    const zoneTitle = this.myDiagramComponent.diagram.groupTemplate.findObject(DiagramTemplateName.zoneTitle) as go.TextBlock;
+    zoneTitle.textEdited = this.updateZoneName.bind(this);
 
-    (this.myDiagramComponent.diagram.nodeTemplate.findObject('unit_name') as go.TextBlock).textEdited =
-      ((thisTextBlock, oldName, newName) => this.updateUnitName(thisTextBlock, oldName, newName, appComp));
+    const unitTitle = this.myDiagramComponent.diagram.nodeTemplate.findObject(DiagramTemplateName.unitTitle) as go.TextBlock;
+    unitTitle.textEdited = this.updateUnitName.bind(this);
 
-    this.myDiagramComponent.diagram.groupTemplate.mouseDrop =
-      ((e, thisObj) => this.updateUnitZone(e, thisObj, appComp));
+    this.myDiagramComponent.diagram.groupTemplate.mouseDrop = this.updateUnitZoneId.bind(this);
 
     this.loadZones();
   }
@@ -309,11 +259,11 @@ export class AppDiagramComponent implements AfterViewInit {
     }
   }
 
-  public updateZoneName(thisTextBlock: go.TextBlock, oldName: string, newName: string, appComp: AppDiagramComponent): void {
+  public updateZoneName(thisTextBlock: go.TextBlock, oldName: string, newName: string): void {
     const grpId = thisTextBlock.panel.panel.panel.data.id;
     if (newName && newName !== oldName) {
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      appComp.zonesService.updateZone({ ID: grpId, Name: newName }).subscribe(() => {
+      this.zonesService.updateZone({ ID: grpId, Name: newName }).subscribe(() => {
         this.loadZones();
       });
     } else {
@@ -321,7 +271,7 @@ export class AppDiagramComponent implements AfterViewInit {
     }
   }
 
-  public updateUnitZone(e: go.InputEvent, thisObj: go.GraphObject, appComp: AppDiagramComponent): void {
+  public updateUnitZoneId(e: go.InputEvent, thisObj: go.GraphObject): void {
     const grp = thisObj as go.Group;
     if (grp !== null && !e.diagram.selection.all(n => n instanceof go.Group)) {
       grp.addMembers(grp.diagram.selection, true);
@@ -335,11 +285,11 @@ export class AppDiagramComponent implements AfterViewInit {
     e.diagram.layoutDiagram(true);
   }
 
-  public updateUnitName(thisTextBlock: go.TextBlock, oldName: string, newName: string, appComp: AppDiagramComponent): void {
+  public updateUnitName(thisTextBlock: go.TextBlock, oldName: string, newName: string): void {
     const unitId = thisTextBlock.panel.panel.data.id;
     if (newName && newName !== oldName) {
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      appComp.zonesService.updateUnit({ Serial: unitId, Name: newName }).subscribe(() => {
+      this.zonesService.updateUnit({ Serial: unitId, Name: newName }).subscribe(() => {
         this.loadZones();
       });
     } else {
@@ -353,7 +303,7 @@ export class AppDiagramComponent implements AfterViewInit {
       zones.forEach((zone) => {
         this.myDiagramComponent.diagram.model.addNodeData({
           id: zone.ID,
-          key: zone.ID === -1 ? NodeType.rootZone : NodeType.zone,
+          key: zone.ID === utils.rootId ? NodeType.rootZone : NodeType.zone,
           text: zone.Name,
           isGroup: true,
           type: ZoneType.type0,
