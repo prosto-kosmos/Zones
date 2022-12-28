@@ -299,6 +299,13 @@ export class AppDiagramComponent implements AfterViewInit {
 
   public loadZones(): void {
     this.zonesService.getZoneList().subscribe((zones) => {
+      const collapsedGroups: number[] = [];
+      this.myDiagramComponent.diagram.nodes.each((node) => {
+        if (node instanceof go.Group && node.isSubGraphExpanded === false) {
+          collapsedGroups.push(node.data.id);
+        }
+      });
+
       this.myDiagramComponent.diagram.model.nodeDataArray = [];
       zones.forEach((zone) => {
         this.myDiagramComponent.diagram.model.addNodeData({
@@ -318,6 +325,12 @@ export class AppDiagramComponent implements AfterViewInit {
               type: unit.Online ? ZoneType.type1 : ZoneType.type4,
             });
           });
+        }
+      });
+
+      this.myDiagramComponent.diagram.nodes.each((node) => {
+        if (node instanceof go.Group && collapsedGroups.includes(node.data.id)) {
+          node.isSubGraphExpanded = false;
         }
       });
     });
